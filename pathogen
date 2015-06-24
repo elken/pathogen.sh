@@ -73,7 +73,7 @@ do_install() {
     if proceed "y" "Push changes?"; then
         git push origin master
     fi
-    printf "%s" "${colorG}Done.${reset}\n"
+    printf "${colorG}%s${reset}\n" "Done."
     popd > /dev/null
     exit 0
 }
@@ -127,13 +127,13 @@ loop_args() {
                 status=$?
                 if [ "${status}" == 0 ]; then
                     eval "${func} ${SITES[github]}${1}"
+                else
+                    git ls-remote "${SITES[github]}$USER/${1}" 2> /dev/null > /dev/null
+                    status=$?
+                    if [ "${status}" == 0 ]; then
+                        eval "${func} ${SITES[github]}$USER/${1}"
+                    fi
                 fi
-                git ls-remote "${SITES[github]}$USER/${1}" 2> /dev/null > /dev/null
-                status=$?
-                if [ "${status}" == 0 ]; then
-                    eval "${func} ${SITES[github]}$USER/${1}"
-                fi
-
                 if [ "${#SITES[$PROTOCOL]}" != 0 ]; then
                     eval "${func} $(eval proto_to_string ${1})"
                 else
