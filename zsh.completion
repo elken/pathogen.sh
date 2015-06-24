@@ -1,0 +1,40 @@
+#compdef pathogen
+
+_pathogen() {
+    local curcontext="${curcontext}" state line
+    typeset -A opt_args
+
+    _arguments '1: :->args'\
+               '*: :->opts'
+
+    case $state in
+        args)
+            _arguments '1:Operations:(install remove)'
+            ;;
+        *)
+            case $words[2] in
+                install)
+                    _pathogen_install
+                    return 0
+                    ;;
+                remove)
+                    _pathogen_remove
+                    return 0
+                    ;;
+                *)
+                    _files
+            esac
+    esac
+}
+
+_pathogen_install(){
+    return 0
+}
+
+_pathogen_remove() {
+    pushd $HOME/.vim > /dev/null
+    compadd "${@}" $(git submodule | awk '{print substr($2,8)}')
+    popd > /dev/null
+}
+
+_pathogen "${@}"

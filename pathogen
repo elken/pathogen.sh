@@ -1,0 +1,161 @@
+#!/bin/bash
+VIMDIR=$HOME/.vim
+BRANCH=master
+declare -A SITES
+SITES=([github]="https://github.com/" [bitbucket]="https://bitbucket.org/")
+
+colorR="\e[38;5;1m"
+colorG="\e[38;5;2m"
+colorW="\e[38;5;7m"
+reset="\e[0m"
+
+proceed() {
+    Y="Y"; y="$(echo $Y | tr '[:upper:]' '[:lower:]')";
+    N="N"; n="$(echo $N | tr '[:upper:]' '[:lower:]')"
+    case "$1" in
+        y)  printf "${colorG}%s${reset} ${colorW}%s${reset}" $"$2 [Y/n] "
+            read -n 1 answer
+            echo
+            case $answer in
+                $Y|$y|'') return 0;;
+                *) return 1;;
+            esac;;
+        n)  printf "${colorG}%s${reset} ${colorW}%s${reset}" $"$2 [y/N] "
+            read -n 1 answer
+            echo
+            case $answer in
+                $N|$n|'') return 0;;
+                *) return 1;;
+            esac;;
+    esac
+}
+
+show_help() {
+    echo -ne "Script to help manage vim plugins via tpope's vim-pathogen.\n
+Adds plugins as submodules.\n
+Operations:
+ $(basename $0) install <site>://<user>/<repo>
+\tSites available: \tsite: url\n"
+    for i in "${!SITES[@]}"; do
+        echo -ne "\t\t\t\t$i: ${SITES[$i]}\n"
+    done
+    echo -ne " $(basename $0) install <user>/<repo>
+\tCompletes to ${SITES[github]}<user>/<repo>
+
+ $(basename $0) install <repo>
+\tCompletes to ${SITES[github]}$USER/<repo>
+
+ $(basename $0) remove <repo>
+\tRemove & cleanup submodule <repo>\n
+Run $(basename $0) with anything else to see this help.\n"
+    exit 0
+}
+
+error_msg() {
+    printf "${colorR}%s${reset}\n" "${@}"
+    popd > /dev/null
+    exit 1
+}
+
+do_install() {
+    printf "${colorG}Installing: ${reset}%s\n" "${1}"
+    if ! proceed "y" "Using \"${BRANCH}\" branch, OK?"; then
+        printf "Input a branch to use: "
+        read BRANCH
+    fi
+    git submodule add -b "${BRANCH}" "${1}" bundle/"${MODULE}"
+    printf "${colorG}Commit message: ${reset}\"%s\"\n" "${COMMIT_MSG}"
+    git config -f .gitmodules --add submodule.bundle/"${MODULE}".ignore dirty
+    git add --all .
+    git commit --short 
+    git commit -am  "${COMMIT_MSG}" 2>/dev/null > /dev/null
+
+    if proceed "y" "Push changes?"; then
+        git push origin master
+    fi
+    printf "%s" "${colorG}Done.${reset}\n"
+    popd > /dev/null
+    exit 0
+}
+
+do_remove() {
+    printf "${colorG}Removing: ${reset}%s\n" "${1}"
+    
+    git rebase HEAD
+    printf "%s" "${colorG}Removing entry from .git/config${reset}\n"
+    git config -f .git/config --remove-section submodule.bundle/"${MODULE}"
+    printf "%s" "${colorG}Removing entry from .gitmodules${reset}\n"
+    git config -f .gitmodules --remove-section submodule.bundle/"${MODULE}"
+    git stash
+    printf "%s" "${colorG}Removing cached files${reset}\n"
+    git rm --cached bundle/"${MODULE}"
+    printf "%s ""${colorG}Removing files${reset}\n"
+    rm -rf bundle/"${MODULE}" .git/modules/bundle/"${MODULE}"
+    git stash pop -q
+    git add --all .
+    git commit --short 
+    git commit -am  "${COMMIT_MSG}" 2> /dev/null > /dev/null
+
+    if proceed "y" "Push changes?"; then
+        git push origin master
+    fi
+
+    printf "%s" "${colorG}Done.${reset}\n"
+    popd > /dev/null
+    exit 0
+}
+
+proto_to_string() {
+    PROTOCOL="${1%:*}"
+    BASE_URL="${1#*//*}"
+    printf "%s" "${SITES[$PROTOCOL]}${BASE_URL}"
+}
+
+loop_args() {
+    func="do_${1}"
+    shift
+    while [ "${#@}" != 0 ]; do
+        PROTOCOL="${1%:*}"
+        MODULE="${1##*/}"
+        COMMIT_MSG="$(echo ${func##*_} | perl -ne 'print ucfirst($_)') submodule: $MODULE"
+
+        if [ "${func}" == "do_install" ]; then
+            if [ "${PROTOCOL}" == "http" ] || [ "${PROTOCOL}" == "https" ]; then
+                eval "${func} ${1}"
+            else
+                git ls-remote "${SITES[github]}${1}" 2> /dev/null > /dev/null
+                status=$?
+                if [ "${status}" == 0 ]; then
+                    eval "${func} ${SITES[github]}${1}"
+                fi
+                git ls-remote "${SITES[github]}$USER/${1}" 2> /dev/null > /dev/null
+                status=$?
+                if [ "${status}" == 0 ]; then
+                    eval "${func} ${SITES[github]}$USER/${1}"
+                fi
+
+                if [ "${#SITES[$PROTOCOL]}" != 0 ]; then
+                    eval "${func} $(eval proto_to_string ${1})"
+                else
+                    printf "${colorR}%s${reset}\n" "$PROTOCOL not found."
+                fi
+            fi
+        else
+            eval "${func} ${1}"
+        fi
+        shift
+    done
+}
+
+if [ "${1}" != "install" ] && [ "${1}" != "remove" ]; then
+    show_help
+fi
+
+pushd "${VIMDIR}" > /dev/null
+eval git status 2> /dev/null > /dev/null
+is_git_repo=$?
+if [ "${is_git_repo}" == 0 ]; then
+    loop_args "${@}"
+else
+    error_msg "Not a git repo. Exiting."
+fi

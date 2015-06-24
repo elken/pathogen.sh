@@ -1,0 +1,31 @@
+#!/bin/bash
+
+_pathogen() {
+    local cur prev opts
+    COMPREPLY=()
+    cur="${COMP_WORDS[COMP_CWORD]}"
+    prev="${COMP_WORDS[COMP_CWORD-1]}"
+    opts="install remove"
+
+    case "${prev}" in 
+        install)
+            return 0
+            ;;
+
+        remove)
+            pushd $HOME/.vim > /dev/null
+            local modules=$(git submodule | awk '{print substr($2,8)}')
+            COMPREPLY=( $(compgen -W "${modules}" -- "${cur}") )
+            popd > /dev/null
+            return 0
+            ;;
+
+        *)
+        ;;
+    esac
+
+    COMPREPLY=($(compgen -W "${opts}" -- "${cur}"))
+    return 0
+}
+
+complete -F _pathogen pathogen
