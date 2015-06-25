@@ -47,6 +47,8 @@ Operations:
 
  $(basename $0) remove <repo>
 \tRemove & cleanup submodule <repo>\n
+ $(basename $0) list
+\tView all submodules in ${VIMDIR}\n
 Run $(basename $0) with anything else to see this help.\n"
     exit 0
 }
@@ -74,6 +76,18 @@ do_install() {
         git push origin master
     fi
     printf "${colorG}%s${reset}\n" "Done."
+    popd > /dev/null
+    exit 0
+}
+
+do_list() {
+    local versions=($(git submodule | awk '{print $3}'))
+    local urls=($(awk '/url =/ {print $3}' .gitmodules | sort))
+
+    printf "${colorG}List of modules: \n${reset}" 
+    for ((i=0;i<${#versions[@]};i++)); do
+        printf "%s ${colorG}%s${reset}\n" "${urls[$i]}" "${versions[$i]}"
+    done
     popd > /dev/null
     exit 0
 }
@@ -112,6 +126,10 @@ proto_to_string() {
 }
 
 loop_args() {
+    if [ "${1}" == list ]; then
+        do_list
+    fi
+
     func="do_${1}"
     shift
     while [ "${#@}" != 0 ]; do
@@ -147,7 +165,7 @@ loop_args() {
     done
 }
 
-if [ "${1}" != "install" ] && [ "${1}" != "remove" ]; then
+if [ "${1}" != "install" ] && [ "${1}" != "list" ] && [ "${1}" != "remove" ]; then
     show_help
 fi
 

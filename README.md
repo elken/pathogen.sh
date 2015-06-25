@@ -12,12 +12,12 @@ submodules.
 
 ## Usage
 
-`pathogen.sh` is pretty simple to use, much like `pathogen.vim`, it provides 2
-commands, install and remove.
+`pathogen.sh` is pretty simple to use, much like `pathogen.vim`, it provides 3
+commands, install, list and remove.
 
 Due to the sheer scale of how you can use
 `pathogen install`, there's no completion for it, but `pathogen remove` is
-capable of detecting all plugins configured *using this method*.
+capable of detecting all plugins configured as submodules.
 
 **Any plugins not configured as submodules will not show up in completion.**
 
@@ -39,6 +39,11 @@ plugins, assuming you have the correct setup in `$HOME/.gitconfig`.
 `pathogen remove <repo>`
 
 Either manually or tab-completed, removes and cleans up `<repo>`.
+
+`pathogen list`
+
+List all submodules installed in `$VIMDIR` (defaults to $HOME/.vim) along with
+their tags.
 
 
 ## License

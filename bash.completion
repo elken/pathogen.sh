@@ -5,10 +5,14 @@ _pathogen() {
     COMPREPLY=()
     cur="${COMP_WORDS[COMP_CWORD]}"
     prev="${COMP_WORDS[COMP_CWORD-1]}"
-    opts="install remove"
+    opts="install list remove"
 
     case "${prev}" in 
         install)
+            return 0
+            ;;
+
+        list)
             return 0
             ;;
 
